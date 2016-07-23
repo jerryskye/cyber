@@ -35,7 +35,7 @@ if ARGV.first == 'pry'
 end
 
 scheduler = Rufus::Scheduler.new
-scheduler.every '1m', :first_in => '1s', :overlap => false do
+scheduler.every '90s', :first_in => '1s', :overlap => false do
 	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job started.")
 	tweets = Tweet.last.nil?? client.mentions_timeline : client.mentions_timeline({:since_id => Tweet.last.tweet.id})
 	puts "\tFound #{tweets.count} new tweets."
