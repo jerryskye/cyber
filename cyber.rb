@@ -1,3 +1,4 @@
+require 'pry'
 require 'yaml'
 require 'twitter'
 require 'nokogiri'
@@ -7,7 +8,14 @@ require 'data_mapper'
 
 def get_cyber url
 	doc = Nokogiri::HTML(open(url))
-	"Cyber count: #{doc.at('head > title').text.scan(/cyber/i).count + doc.at('body').text.scan(/cyber/i).count}"
+	max = 0
+	doc.at('body').traverse do |node|
+		cyber = node.text.scan(/cyber/i).count
+		if node.name != 'body' and cyber > max
+			max = cyber
+		end
+	end
+	"Cyber count: #{max}"
 end
 
 client = YAML.load_file('client.yml')
@@ -21,11 +29,16 @@ class Tweet
 end
 DataMapper.finalize
 
+if ARGV.first == 'pry'
+	pry
+	Kernel.exit
+end
+
 scheduler = Rufus::Scheduler.new
 scheduler.every '1m', :first_in => '1s', :overlap => false do
 	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job started.")
 	tweets = Tweet.last.nil?? client.mentions_timeline : client.mentions_timeline({:since_id => Tweet.last.tweet.id})
-	puts "\tFound #{tweets.count} tweets."
+	puts "\tFound #{tweets.count} new tweets."
 	tweets.each do |tweet|
 		if tweet.uris.empty?
 			puts "\tNo URIs"
