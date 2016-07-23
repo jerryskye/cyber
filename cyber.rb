@@ -7,7 +7,7 @@ require 'data_mapper'
 
 def get_cyber url
 	doc = Nokogiri::HTML(open(url))
-	"Cyber count: #{doc.at('head > title').text.scan('cyber').count + doc.at('body').text.scan('cyber').count}"
+	"Cyber count: #{doc.at('head > title').text.scan(/cyber/i).count + doc.at('body').text.scan(/cyber/i).count}"
 end
 
 client = YAML.load_file('client.yml')
