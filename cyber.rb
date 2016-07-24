@@ -7,13 +7,24 @@ require 'rufus-scheduler'
 require 'data_mapper'
 
 def get_cyber url
-	doc = Nokogiri::HTML(open(url))
 	max = 0
+    url = "http://#{url}" unless url=~/^https?:\/\//
+	begin
+	doc = Nokogiri::HTML(open(url))
 	doc.at('body').traverse do |node|
-		cyber = node.text.scan(/cyber/i).count
+		text = node.text
+	    text = text.encode("UTF-8", :invalid=>:replace, :replace=>"?") unless text.valid_encoding?
+		cyber = text.scan(/cyber/i).count
 		if node.name != 'body' and cyber > max
 			max = cyber
 		end
+	end
+	rescue => e
+		puts e.class
+		puts e
+		puts e.backtrace.join("\n")
+		puts
+		return "Something went wrong. Sorry about that."
 	end
 	return max
 end
@@ -43,14 +54,14 @@ end
 
 scheduler = Rufus::Scheduler.new
 
-scheduler.every '90s', :overlap => false do
+scheduler.every '90s', :first_in => '1s' do
 	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job started.")
 	tweets = Tweet.last.nil?? client.mentions_timeline : client.mentions_timeline({:since_id => Message.last.message.id})
-	puts "\tFound #{messages.count} new tweets."
+	puts "\tFound #{tweets.count} new tweets."
 	response = ""
-	tweets.each do |tweet|
+	tweets.reverse_each do |tweet|
 		valid = true
-		unless messages.uris.empty?
+		unless tweet.uris.empty?
 			uri = tweet.uris.first.expanded_url.to_s
 			unless uri =~ URI::regexp
 				response = "URI invalid: #{uri}"
@@ -66,22 +77,29 @@ scheduler.every '90s', :overlap => false do
 		end
 		if valid
 			cyber = get_cyber uri
-			response = "Cyber count: #{cyber}"
+			response = "Cyber count: #{cyber}\n#{uri}"
 		end
-		client.update("@#{tweet.user.screen_name} " + response, {:in_reply_to_status => tweet})
+		begin
 		Tweet.create(:tweet => tweet, :cyber_count => cyber)
+		client.update("@#{tweet.user.screen_name} " + response, {:in_reply_to_status => tweet})
+		rescue => e
+			puts e.class
+			puts e
+			puts e.backtrace.join("\n")
+			puts
+		end
 	end
 	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job ended.")
 end
 
-scheduler.every '90s', :first_in => '45s', :overlap => false do
+scheduler.every '90s', :first_in => '15s' do
 	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job started.")
-	messages = Message.last.nil?? client.direct_messages_received : client.direct_messages_received({:since_id => Message.last.message.id})
+	messages = Message.last.nil?? client.direct_messages : client.direct_messages({:since_id => Message.last.message.id})
 	puts "\tFound #{messages.count} new direct messages."
 	response = ""
-	messages.each do |message|
+	messages.reverse_each do |message|
 		valid = true
-		unless messages.uris.empty?
+		unless message.uris.empty?
 			uri = message.uris.first.expanded_url.to_s
 			unless uri =~ URI::regexp
 				response = "URI invalid: #{uri}"
@@ -97,10 +115,22 @@ scheduler.every '90s', :first_in => '45s', :overlap => false do
 		end
 		if valid
 			cyber = get_cyber uri
-			response = "Cyber count: #{cyber}"
+			if cyber.is_a? Fixnum
+				response = "Cyber count: #{cyber}\n#{uri}"
+			else
+				response = cyber
+				cyber = -3
+			end
 		end
-		client.create_direct_message(message.sender, response)
+		begin
 		Message.create(:message => message, :cyber_count => cyber)
+		client.create_direct_message(message.sender, response)
+		rescue => e
+			puts e.class
+			puts e
+			puts e.backtrace.join("\n")
+			puts
+		end
 	end
 	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job ended.")
 end
