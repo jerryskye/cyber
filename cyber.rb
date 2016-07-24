@@ -92,7 +92,7 @@ scheduler.every '90s', :first_in => '1s' do
 	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job ended.")
 end
 
-scheduler.every '90s', :first_in => '15s' do
+scheduler.every '90s', :first_in => '45s' do
 	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job started.")
 	messages = Message.last.nil?? client.direct_messages : client.direct_messages({:since_id => Message.last.message.id})
 	puts "\tFound #{messages.count} new direct messages."
