@@ -2,7 +2,8 @@ require 'pry'
 require 'yaml'
 require 'twitter'
 require 'nokogiri'
-require 'open-uri'
+require 'httparty'
+require 'uri'
 require 'rufus-scheduler'
 require 'data_mapper'
 
@@ -10,10 +11,10 @@ def get_cyber url
 	max = 0
     url = "http://#{url}" unless url=~/^https?:\/\//
 	begin
-	doc = Nokogiri::HTML(open(url))
+	doc = Nokogiri::HTML(HTTParty.get(url))
 	doc.at('body').traverse do |node|
 		text = node.text
-	    text = text.encode("UTF-8", :invalid=>:replace, :replace=>"?") unless text.valid_encoding?
+		text = text.encode("UTF-8", :invalid=>:replace, :replace=>"?") unless text.valid_encoding?
 		cyber = text.scan(/cyber/i).count
 		if node.name != 'body' and cyber > max
 			max = cyber
@@ -47,7 +48,7 @@ class Message
 end
 DataMapper.finalize
 
-if ARGV.first == 'pry'
+unless ARGV.empty?
 	pry
 	Kernel.exit
 end
