@@ -57,7 +57,7 @@ scheduler = Rufus::Scheduler.new
 
 scheduler.every '70s', :first_in => '1s' do
 	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job started.")
-	tweets = Tweet.last.nil?? client.mentions_timeline : client.mentions_timeline({:since_id => Message.last.message.id})
+	tweets = Tweet.last.nil?? client.mentions_timeline : client.mentions_timeline({:since_id => Tweet.last.message.id})
 	puts "\tFound #{tweets.count} new tweets."
 	response = ""
 	tweets.reverse_each do |tweet|
