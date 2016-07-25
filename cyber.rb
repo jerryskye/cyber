@@ -9,7 +9,7 @@ require 'data_mapper'
 
 def get_cyber url
 	max = 0
-    url = "http://#{url}" unless url=~/^https?:\/\//
+    url = "http://#{url}" unless url.to_s =~/^https?:\/\//
 	begin
 	doc = Nokogiri::HTML(HTTParty.get(url))
 	doc.at('body').traverse do |node|
@@ -55,7 +55,7 @@ end
 
 scheduler = Rufus::Scheduler.new
 
-scheduler.every '90s', :first_in => '1s' do
+scheduler.every '70s', :first_in => '1s' do
 	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job started.")
 	tweets = Tweet.last.nil?? client.mentions_timeline : client.mentions_timeline({:since_id => Message.last.message.id})
 	puts "\tFound #{tweets.count} new tweets."
@@ -63,8 +63,8 @@ scheduler.every '90s', :first_in => '1s' do
 	tweets.reverse_each do |tweet|
 		valid = true
 		unless tweet.uris.empty?
-			uri = tweet.uris.first.expanded_url.to_s
-			unless uri =~ URI::regexp
+			uri = tweet.uris.first.expanded_url
+			unless uri.to_s =~ URI::regexp
 				response = "URI invalid: #{uri}"
 				puts response
 				valid = false
@@ -93,7 +93,7 @@ scheduler.every '90s', :first_in => '1s' do
 	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job ended.")
 end
 
-scheduler.every '90s', :first_in => '45s' do
+scheduler.every '70s', :first_in => '35s' do
 	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job started.")
 	messages = Message.last.nil?? client.direct_messages : client.direct_messages({:since_id => Message.last.message.id})
 	puts "\tFound #{messages.count} new direct messages."
@@ -101,8 +101,8 @@ scheduler.every '90s', :first_in => '45s' do
 	messages.reverse_each do |message|
 		valid = true
 		unless message.uris.empty?
-			uri = message.uris.first.expanded_url.to_s
-			unless uri =~ URI::regexp
+			uri = message.uris.first.expanded_url
+			unless uri.to_s =~ URI::regexp
 				response = "URI invalid: #{uri}"
 				puts response
 				valid = false
