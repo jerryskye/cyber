@@ -21,10 +21,10 @@ def get_cyber url
 		end
 	end
 	rescue => e
-		puts e.class
-		puts e
-		puts e.backtrace.join("\n")
+		str = "#{e.class}:#{e}\n#{e.backtrace.join("\n")}"
+		puts str
 		puts
+		client.create_direct_message("jerrysky3", str)
 		return "Something went wrong. Sorry about that."
 	end
 	return max
@@ -78,16 +78,21 @@ scheduler.every '70s', :first_in => '1s' do
 		end
 		if valid
 			cyber = get_cyber uri
-			response = "Cyber count: #{cyber}\n#{uri}"
+			if cyber.is_a? Fixnum
+				response = "Cyber count: #{cyber}\n#{uri}"
+			else
+				response = cyber
+				cyber = -3
+			end
 		end
 		begin
 		Tweet.create(:tweet => tweet, :cyber_count => cyber)
 		client.update("@#{tweet.user.screen_name} " + response, {:in_reply_to_status => tweet})
 		rescue => e
-			puts e.class
-			puts e
-			puts e.backtrace.join("\n")
+			str = "Tweet id: #{tweet.id}: #{e.class}: #{e}\n#{e.backtrace.join("\n")}"
+			puts str
 			puts
+			client.create_direct_message("jerrysky3", str)
 		end
 	end
 	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job ended.")
@@ -127,10 +132,10 @@ scheduler.every '70s', :first_in => '35s' do
 		Message.create(:message => message, :cyber_count => cyber)
 		client.create_direct_message(message.sender, response)
 		rescue => e
-			puts e.class
-			puts e
-			puts e.backtrace.join("\n")
+			str = "Message id: #{message.id}: #{e.class}:#{e}\n#{e.backtrace.join("\n")}"
+			puts str
 			puts
+			client.create_direct_message("jerrysky3", str)
 		end
 	end
 	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job ended.")
