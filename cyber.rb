@@ -8,10 +8,9 @@ require 'rufus-scheduler'
 require 'data_mapper'
 
 def get_cyber url
-	max = 0
-    url = "http://#{url}" unless url.to_s =~/^https?:\/\//
 	begin
 	doc = Nokogiri::HTML(HTTParty.get(url))
+	max = 0
 	doc.at('body').traverse do |node|
 		text = node.text
 		text = text.encode("UTF-8", :invalid=>:replace, :replace=>"?") unless text.valid_encoding?
