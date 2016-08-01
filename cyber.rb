@@ -4,11 +4,15 @@ require 'twitter'
 require 'mechanize'
 require 'rufus-scheduler'
 require 'data_mapper'
+require 'rss'
+
+@client = YAML.load_file('client.yml')
+@mechanize = Mechanize.new
 
 def get_cyber url
 	begin
 	max = 0
-	$mechanize.get(url).at('body').traverse do |node|
+	@mechanize.get(url).at('body').traverse do |node|
 		text = node.text
 		text = text.encode("UTF-8", :invalid=>:replace, :replace=>"?") unless text.valid_encoding?
 		cyber = text.scan(/cyber/i).count
@@ -20,14 +24,11 @@ def get_cyber url
 		str = "#{e.class}:#{e}\n#{e.backtrace.join("\n")}"
 		puts str
 		puts
-		$client.create_direct_message("jerrysky3", str)
+		@client.create_direct_message("jerrysky3", str)
 		return "Something went wrong. Sorry about that."
 	end
 	return max
 end
-
-$client = YAML.load_file('client.yml')
-$mechanize = Mechanize.new
 
 DataMapper.setup(:default, "sqlite3://#{Dir.pwd}/database.db")
 class Tweet
@@ -43,6 +44,13 @@ class Message
 	property :message, Object
 	property :cyber_count, Integer
 end
+
+class RSSLoot
+	include DataMapper::Resource
+	property :id, Serial
+	property :item, Object
+	property :cyber_count, Integer
+end
 DataMapper.finalize
 
 unless ARGV.empty?
@@ -54,7 +62,7 @@ scheduler = Rufus::Scheduler.new
 
 scheduler.every '70s', :first_in => '1s' do
 	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job started.")
-	tweets = Tweet.last.nil?? $client.mentions_timeline : $client.mentions_timeline({:since_id => Tweet.last.tweet.id})
+	tweets = Tweet.last.nil?? @client.mentions_timeline : @client.mentions_timeline({:since_id => Tweet.last.tweet.id})
 	puts "\tFound #{tweets.count} new tweets."
 	response = ""
 	tweets.reverse_each do |tweet|
@@ -84,12 +92,12 @@ scheduler.every '70s', :first_in => '1s' do
 		end
 		begin
 		Tweet.create(:tweet => tweet, :cyber_count => cyber)
-		$client.update("@#{tweet.user.screen_name} " + response, {:in_reply_to_status => tweet})
+		@client.update("@#{tweet.user.screen_name} " + response, {:in_reply_to_status => tweet})
 		rescue => e
 			str = "Tweet id: #{tweet.id}: #{e.class}: #{e}\n#{e.backtrace.join("\n")}"
 			puts str
 			puts
-			$client.create_direct_message("jerrysky3", str)
+			@client.create_direct_message("jerrysky3", str)
 		end
 	end
 	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job ended.")
@@ -97,7 +105,7 @@ end
 
 scheduler.every '70s', :first_in => '35s' do
 	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job started.")
-	messages = Message.last.nil?? $client.direct_messages : $client.direct_messages({:since_id => Message.last.message.id})
+	messages = Message.last.nil?? @client.direct_messages : @client.direct_messages({:since_id => Message.last.message.id})
 	puts "\tFound #{messages.count} new direct messages."
 	response = ""
 	messages.reverse_each do |message|
@@ -127,15 +135,34 @@ scheduler.every '70s', :first_in => '35s' do
 		end
 		begin
 		Message.create(:message => message, :cyber_count => cyber)
-		$client.create_direct_message(message.sender, response)
+		@client.create_direct_message(message.sender, response)
 		rescue => e
 			str = "Message id: #{message.id}: #{e.class}:#{e}\n#{e.backtrace.join("\n")}"
 			puts str
 			puts
-			$client.create_direct_message("jerrysky3", str)
+			@client.create_direct_message("jerrysky3", str)
 		end
 	end
 	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job ended.")
+end
+
+scheduler.every '8h', :first_in => '15s' do
+	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job started.")
+	puts "Checking for new articles."
+	begin
+	articles = RSS::Parser.parse(@mechanize.get('http://www.cyberdefence24.pl/rss/wiadomosci').content, false).items.sort {|a, b| a.pubDate <=> b.pubDate}
+	last_date = RSSLoot.last.nil?? Time.new(0) : RSSLoot.last.item.pubDate
+	articles.each do |item|
+		next if item.pubDate < last_date
+		RSSLoot.create(:item => item, :cyber_count => get_cyber(item.link))
+	end
+	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job ended.")
+	rescue => e
+		str = "#{e.class}:#{e}\n#{e.backtrace.join("\n")}"
+		puts str
+		puts
+		@client.create_direct_message("jerrysky3", str)
+	end
 end
 
 scheduler.join
