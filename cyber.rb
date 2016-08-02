@@ -30,6 +30,63 @@ def get_cyber url
 	return max
 end
 
+def reply_to item, response
+	case item
+	when Twitter::Tweet
+		@client.update("@%s %s" % [item.user.screen_name, response], {:in_reply_to_status => item})
+	when Twitter::DirectMessage
+		@client.create_direct_message(item.sender, response)
+	else
+		raise "Something went horribly wrong."
+	end
+end
+
+def check_for last_item
+	items = case last_item
+			 when Tweet
+				 @client.mentions_timeline({:since_id => last_item.tweet.id})
+			 when Message
+				 @client.direct_messages({:since_id => last_item.message.id})
+			 else
+				 Array.new
+			 end
+	puts "\tFound #{items.count} new #{last_item.class.to_s.downcase}s."
+	response = ""
+	items.reverse_each do |item|
+		valid = true
+		unless item.uris.empty?
+			uri = item.uris.first.expanded_url
+			unless uri.to_s =~ URI::regexp
+				response = "URI invalid: #{uri}"
+				puts response
+				valid = false
+				cyber = -1
+			end
+		else
+			response = "\tFound no URIs"
+			puts response
+			valid = false
+			cyber = -2
+		end
+		if valid
+			cyber = get_cyber uri
+			if cyber.is_a? Fixnum
+				response = "Cyber count: #{cyber}\n#{uri}"
+			else
+				response = cyber
+				cyber = -3
+			end
+		end
+		begin
+		last_item.class.create(last_item.class.to_s.downcase.to_sym => item, :cyber_count => cyber)
+		reply_to(item, response)
+		rescue => e
+			puts str = "#{last_item.class} id: #{item.id}. #{e.class}: #{e}\n#{e.backtrace.join("\n")}\n"
+			@client.create_direct_message("jerrysky3", str.chop)
+		end
+	end
+end
+
 DataMapper.setup(:default, "sqlite3://#{Dir.pwd}/database.db")
 class Tweet
 	include DataMapper::Resource
@@ -62,87 +119,13 @@ scheduler = Rufus::Scheduler.new
 
 scheduler.every '70s', :first_in => '1s' do
 	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job started.")
-	tweets = Tweet.last.nil?? @client.mentions_timeline : @client.mentions_timeline({:since_id => Tweet.last.tweet.id})
-	puts "\tFound #{tweets.count} new tweets."
-	response = ""
-	tweets.reverse_each do |tweet|
-		valid = true
-		unless tweet.uris.empty?
-			uri = tweet.uris.first.expanded_url
-			unless uri.to_s =~ URI::regexp
-				response = "URI invalid: #{uri}"
-				puts response
-				valid = false
-				cyber = -1
-			end
-		else
-			response = "\tFound no URIs"
-			puts response
-			valid = false
-			cyber = -2
-		end
-		if valid
-			cyber = get_cyber uri
-			if cyber.is_a? Fixnum
-				response = "Cyber count: #{cyber}\n#{uri}"
-			else
-				response = cyber
-				cyber = -3
-			end
-		end
-		begin
-		Tweet.create(:tweet => tweet, :cyber_count => cyber)
-		@client.update("@#{tweet.user.screen_name} " + response, {:in_reply_to_status => tweet})
-		rescue => e
-			str = "Tweet id: #{tweet.id}: #{e.class}: #{e}\n#{e.backtrace.join("\n")}"
-			puts str
-			puts
-			@client.create_direct_message("jerrysky3", str)
-		end
-	end
+	check_for Tweet.last
 	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job ended.")
 end
 
 scheduler.every '70s', :first_in => '35s' do
 	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job started.")
-	messages = Message.last.nil?? @client.direct_messages : @client.direct_messages({:since_id => Message.last.message.id})
-	puts "\tFound #{messages.count} new direct messages."
-	response = ""
-	messages.reverse_each do |message|
-		valid = true
-		unless message.uris.empty?
-			uri = message.uris.first.expanded_url
-			unless uri.to_s =~ URI::regexp
-				response = "URI invalid: #{uri}"
-				puts response
-				valid = false
-				cyber = -1
-			end
-		else
-			response = "\tFound no URIs"
-			puts response
-			valid = false
-			cyber = -1
-		end
-		if valid
-			cyber = get_cyber uri
-			if cyber.is_a? Fixnum
-				response = "Cyber count: #{cyber}\n#{uri}"
-			else
-				response = cyber
-				cyber = -3
-			end
-		end
-		begin
-		Message.create(:message => message, :cyber_count => cyber)
-		@client.create_direct_message(message.sender, response)
-		rescue => e
-			str = "Message id: #{message.id}: #{e.class}:#{e}\n#{e.backtrace.join("\n")}"
-			puts str
-			puts
-			@client.create_direct_message("jerrysky3", str)
-		end
-	end
+	check_for Message.last
 	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job ended.")
 end
 
