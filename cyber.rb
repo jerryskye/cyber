@@ -45,7 +45,7 @@ class Message
 	property :cyber_count, Integer
 end
 
-class RSSLoot
+class Article
 	include DataMapper::Resource
 	property :id, Serial
 	property :item, Object
@@ -151,10 +151,10 @@ scheduler.every '8h', :first_in => '15s' do
 	puts "Checking for new articles."
 	begin
 	articles = RSS::Parser.parse(@mechanize.get('http://www.cyberdefence24.pl/rss/wiadomosci').content, false).items.sort {|a, b| a.pubDate <=> b.pubDate}
-	last_date = RSSLoot.last.nil?? Time.new(0) : RSSLoot.last.item.pubDate
+	last_date = Article.last.nil?? Time.new(0) : Article.last.item.pubDate
 	articles.each do |item|
 		next if item.pubDate <= last_date
-		RSSLoot.create(:item => item, :cyber_count => get_cyber(item.link))
+		Article.create(:item => item, :cyber_count => get_cyber(item.link))
 	end
 	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job ended.")
 	rescue => e
