@@ -4,7 +4,6 @@ require 'twitter'
 require 'mechanize'
 require 'rufus-scheduler'
 require 'data_mapper'
-require 'rss'
 
 @client = YAML.load_file('client.yml')
 @mechanize = Mechanize.new
@@ -127,25 +126,6 @@ scheduler.every '70s', :first_in => '35s' do
 	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job started.")
 	check_for Message.last
 	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job ended.")
-end
-
-scheduler.every '8h', :first_in => '15s' do
-	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job started.")
-	puts "Checking for new articles."
-	begin
-	articles = RSS::Parser.parse(@mechanize.get('http://www.cyberdefence24.pl/rss/wiadomosci').content, false).items.sort {|a, b| a.pubDate <=> b.pubDate}
-	last_date = Article.last.nil?? Time.new(0) : Article.last.item.pubDate
-	articles.each do |item|
-		next if item.pubDate <= last_date
-		Article.create(:item => item, :cyber_count => get_cyber(item.link))
-	end
-	puts Time.now.strftime("%d/%m/%Y %H:%M:%S: Job ended.")
-	rescue => e
-		str = "#{e.class}:#{e}\n#{e.backtrace.join("\n")}"
-		puts str
-		puts
-		@client.create_direct_message("jerrysky3", str)
-	end
 end
 
 scheduler.join
