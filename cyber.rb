@@ -100,13 +100,6 @@ class Message
 	property :message, Object
 	property :cyber_count, Integer
 end
-
-class Article
-	include DataMapper::Resource
-	property :id, Serial
-	property :item, Object
-	property :cyber_count, Integer
-end
 DataMapper.finalize
 
 unless ARGV.empty?
