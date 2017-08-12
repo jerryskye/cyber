@@ -5,6 +5,10 @@ class App < Roda
 	plugin :render, engine: 'haml'
 	MECH = Mechanize.new
 
+	def url str
+		ENV["BASE_URL"] + str
+	end
+
 	def get_count url, keyword
 		begin
 		max = 0

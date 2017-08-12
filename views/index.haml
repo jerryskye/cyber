@@ -22,7 +22,7 @@
 
 %body{onload: '$("#form").submit(submitForm);'}
   .col-xs-4
-    %form{id: 'form', role: 'form', method: 'post', action: '/count'}
+    %form{id: 'form', role: 'form', method: 'post', action: url('/count')}
       %label{for: 'keyword'} Keyword:
       %input#keyword{type: 'text', name: 'keyword', autofocus: 'true', required: 'true'}
       %br

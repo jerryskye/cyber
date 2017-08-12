@@ -1,7 +1,9 @@
 FROM ruby:2.3
+ARG BASE_URL
 
 RUN apt-get update -qq && apt-get install -y build-essential cron
 ENV APP_HOME /app
+ENV BASE_URL $BASE_URL
 RUN mkdir $APP_HOME
 WORKDIR $APP_HOME
 COPY Gemfile* ./
