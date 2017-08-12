@@ -1,0 +1,32 @@
+:javascript
+  function submitForm(event) {
+    event.preventDefault();
+    var form = event.target;
+    $.ajax({url: form.action,
+      method: 'POST',
+      data: {
+        keyword: $('#keyword').val(),
+        url: $('#url').val()
+      },
+      beforeSend: function() {
+        $('#result').html("<h4>Loading...</h4>");
+      },
+      success: function(result) {
+        $('#result').html("<h4>" + result + "</h4>")
+      },
+      error: function(jqXHR, textStatus, errorThrown) {
+        $('#result').html("<h3>" + errorThrown + "</h3>");
+      }
+    });
+  };
+
+%body{onload: '$("#form").submit(submitForm);'}
+  .col-xs-4
+    %form{id: 'form', role: 'form', method: 'post', action: '/count'}
+      %label{for: 'keyword'} Keyword:
+      %input#keyword{type: 'text', name: 'keyword', autofocus: 'true', required: 'true'}
+      %br
+      %label{for: 'url'} URL:
+      %input#url{type: 'text', name: 'url', required: 'true', placeholder: 'http://example.com'}
+      %input{type: 'submit', value: 'Search'}
+  #result.col-xs-4
